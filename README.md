@@ -79,6 +79,13 @@ Containers are what you run on the IaaS layer, and the single word covers two qu
 | [Kali Linux](Docker/05_Kali.ipynb) | A full Kali desktop reached through the browser |
 | [Firefox](Docker/07_Firefox.ipynb) | Containerized browser served over VNC, mounted at a subfolder behind a reverse proxy |
 
+**Observability**
+
+| Page | Covers |
+|----|----|
+| [LGTM Stack](Observability/01_LGTM_Stack.ipynb) | The OTEL plus LGTM stack in one compose file: Loki for logs, Tempo for traces, Mimir for metrics, Grafana on top, with an OpenTelemetry Collector in front, Promtail shipping logs, and the LogQL and PromQL queries to read it back |
+| [Grafana](Observability/02_Grafana.ipynb) | Installing and running the Grafana server itself: apt install, the systemd unit, and the port it lands on |
+
 ------------------------------------------------------------------------
 
 ## The Pattern Every Service Page Follows
