@@ -50,6 +50,7 @@ Containers are what you run on the IaaS layer, and the single word covers two qu
 | [Terraform](01_Terraform.ipynb) | Declarative IaC in HCL: providers, resources, state, and the init/plan/apply workflow, plus what the Proxmox provider does with it |
 | [Ansible](02_Ansible.ipynb) | Agentless configuration management over SSH: inventory, playbooks, roles, variables, idempotency, and where it beats or loses to Terraform |
 | [Pulumi](03_Pulumi.ipynb) | Terraform’s model driven from a real programming language, the `Output[T]` trap that catches everyone, and when the tradeoff is worth it |
+| [K6](04_K6.ipynb) | Load testing with a Go binary running JS in an embedded runtime, which is where every gotcha comes from: script lifecycle, executors, checks versus thresholds, the URL cardinality trap in tagging, and distributed runs |
 
 **Foundations**
 
@@ -79,12 +80,44 @@ Containers are what you run on the IaaS layer, and the single word covers two qu
 | [Kali Linux](Docker/05_Kali.ipynb) | A full Kali desktop reached through the browser |
 | [Firefox](Docker/07_Firefox.ipynb) | Containerized browser served over VNC, mounted at a subfolder behind a reverse proxy |
 
-**Observability**
+**Observability: concepts and metrics**
 
 | Page | Covers |
 |----|----|
-| [LGTM Stack](Observability/01_LGTM_Stack.ipynb) | The OTEL plus LGTM stack in one compose file: Loki for logs, Tempo for traces, Mimir for metrics, Grafana on top, with an OpenTelemetry Collector in front, Promtail shipping logs, and the LogQL and PromQL queries to read it back |
-| [Grafana](Observability/02_Grafana.ipynb) | Installing and running the Grafana server itself: apt install, the systemd unit, and the port it lands on |
+| [Observability Overview](Observability/00_Observability_Overview.ipynb) | What separates observability from monitoring, the four signals and what each costs, cardinality as the constraint behind every tool choice, pull versus push, and the four-layer model the rest of these pages sit in |
+| [Prometheus](Observability/01_Prometheus.ipynb) | The metrics database: data model and the four metric types, exposition format, scrape config, service discovery, both relabelling phases, TSDB sizing arithmetic, and the operational traps |
+| [Exporters and Instrumentation](Observability/02_Exporters_and_Instrumentation.ipynb) | Where metrics come from: node_exporter, cAdvisor versus kube-state-metrics, the blackbox_exporter relabelling dance, why Pushgateway is usually wrong, and writing your own with `prometheus_client` |
+| [PromQL](Observability/03_PromQL.ipynb) | Selectors, rate versus irate versus increase, counter resets, why aggregating a rate is not rating an aggregate, histogram quantiles, vector matching, recording rules, and a table of the traps |
+| [Alerting](Observability/04_Alerting.ipynb) | Alerting rules and what `for` really does, `promtool test rules`, the Alertmanager route tree and its four timers, grouping, inhibition, silences, and Grafana unified alerting compared |
+
+**Observability: logs, traces and profiles**
+
+| Page | Covers |
+|----|----|
+| [Loki](Observability/05_Loki.ipynb) | The label-only index and when that bet fails, streams and chunks, the two config settings that silently destroy retention, the collection agents, and Loki versus Elasticsearch |
+| [LogQL](Observability/06_LogQL.ipynb) | Stream selectors as the only indexed part, line filters before parsers, the five parsers, metric queries over log lines, alerting on a log line that never arrived, and a performance checklist |
+| [Tempo](Observability/07_Tempo.ipynb) | What a trace is and why broken ones are always a propagation bug, TraceQL including structural queries, head versus tail sampling, the metrics generator, and exemplars as the link from a graph to a real request |
+| [Pyroscope](Observability/08_Pyroscope.ipynb) | Continuous profiling: how to actually read a flame graph, CPU versus wall clock, push SDK versus scrape versus eBPF, and the four questions only a profiler answers |
+
+**Observability: collection**
+
+| Page | Covers |
+|----|----|
+| [OpenTelemetry](Observability/09_OpenTelemetry.ipynb) | The spec, SDKs and OTLP, automatic versus manual instrumentation, context propagation and the four places it breaks, semantic conventions, and the metric temporality trap |
+| [OpenTelemetry Collector](Observability/10_OTel_Collector.ipynb) | Receivers, processors, exporters and connectors, why processor order is semantic, OTTL, the agent and gateway patterns, reliability, and sizing |
+| [Alloy](Observability/11_Alloy.ipynb) | Grafana’s Collector distribution: the component graph and the discovery reuse that justifies it, Alloy syntax, clustering, and when the difference from upstream actually matters |
+| [Log Collectors](Observability/12_Log_Collectors.ipynb) | Fluent Bit and Vector as the non-Grafana alternatives, VRL and its test harness, and the six problems every log pipeline has regardless of agent |
+
+**Observability: reading, operating, deciding**
+
+| Page | Covers |
+|----|----|
+| [Grafana](Observability/13_Grafana.ipynb) | Datasources and why UIDs must be pinned, Explore versus dashboards, the cross-signal links that make one click lead from a graph to a trace to a log, variables, transformations, and dashboard design |
+| [Dashboards as Code](Observability/14_Dashboards_as_Code.ipynb) | File provisioning, the Terraform Grafana provider, Grizzly, what to version, and the delete-the-volume test for whether it is really reproducible |
+| [Long-Term Storage](Observability/15_Long_Term_Storage.ipynb) | Remote write and its cost controls, Mimir versus Thanos versus VictoriaMetrics on architecture rather than features, downsampling, why federation is not this, and a progression that starts by adding nothing |
+| [SLOs and Alerting Practice](Observability/16_SLOs_and_Alerting_Practice.ipynb) | The four golden signals, RED and USE, error budgets with the downtime table, multi-window burn-rate alerting, what deserves a page, and how it all scales down to a home lab |
+| [Observability Landscape](Observability/17_Observability_Landscape.ipynb) | The commercial platforms and their cost models, the ClickHouse-backed all-in-ones, the eBPF layer and its ceiling, the adjacent tooling, and where this stack’s tradeoff sits |
+| [LGTM Stack](Observability/18_LGTM_Stack.ipynb) | The whole thing in one compose file: OpenTelemetry Collector in front, Loki for logs, Tempo for traces, Mimir for metrics, Grafana on top, with the queries to read it back |
 
 ------------------------------------------------------------------------
 
@@ -118,9 +151,24 @@ The host for most of these notes is a Proxmox home lab, which puts the IaaS laye
 Stated plainly, so the gaps are not mistaken for oversights:
 
 - **Standing up a Kubernetes cluster.** The Kubernetes page covers the model and the manifests, not the install. No k3s or kubeadm walkthrough, and nothing on RBAC, storage classes, or autoscaling.
+
 - **The lab’s own IaC.** The Terraform and Ansible pages are general. The code that actually provisions this home lab lives in the `infra/` directory of the parent Knowledge repo.
+
 - **Public cloud IaaS.** No EC2, GCE, or equivalent.
+
 - **Registries and CI.** Building, tagging, and pushing images to a registry.
+
+- **Observability at real scale.** Every page in that section assumes one cluster or one machine. Nothing on running Mimir, Thanos, or a Loki cluster as a distributed system with the operational load that implies.
+
+- **eBPF tooling in depth.** Beyla, Pixie, Coroot and Cilium are named and placed in the [landscape](Observability/17_Observability_Landscape.ipynb), not taught. No deployment or configuration for any of them.
+
+- **Chaos engineering.** Litmus and Chaos Mesh get a mention only. Deliberately inducing failure is the honest test of whether the alerting works, and it is not covered here.
+
+- **Cost observability.** OpenCost, Kubecost and Infracost are named, not used.
+
+- **Real user monitoring and frontend performance.** Faro, the OTel browser SDK, Core Web Vitals and session replay. The observability pages stop at the server.
+
+- **Security observability.** Falco, Wazuh, and the log-pipeline-to-detection path. Adjacent to the logging pages and a genuinely different subject.
 
 The two PostgreSQL pages also overlap and are worth merging.
 
