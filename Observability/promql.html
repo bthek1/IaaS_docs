@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.10.18">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Benedict Thekkel">
+<meta name="description" content="The query language: selectors, rate versus increase, counter resets, aggregation, joins, recording rules, and the traps that produce confidently wrong numbers.">
+
+<title>PromQL – IaaS_docs</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<link href="../Observability/alerting.html" rel="next">
+<link href="../Observability/exporters_and_instrumentation.html" rel="prev">
+<link href="../favi.svg" rel="icon" type="image/svg+xml">
+<script src="../site_libs/quarto-html/quarto.js" type="module"></script>
+<script src="../site_libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-dark-b85bc7c33db8c58e0ec93c3465666fed.css" rel="stylesheet" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting-64a204ab8560d761af7679ceaba22944.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap-bbd64a6fcbf54a7b79ffed393e885326.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="../site_libs/bootstrap/bootstrap-dark-175f28cc9209fa6ef4c21b809f7add8b.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="../site_libs/bootstrap/bootstrap-bbd64a6fcbf54a7b79ffed393e885326.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="../styles.css">
+<meta property="og:title" content="PromQL – IaaS_docs">
+<meta property="og:description" content="The query language: selectors, rate versus increase, counter resets, aggregation, joins, recording rules, and the traps that produce confidently wrong numbers.">
+<meta property="og:image" content="https://bthek1.github.io/IaaS_docs/Observability/Logo.svg">
+<meta property="og:site_name" content="IaaS_docs">
+<meta name="twitter:title" content="PromQL – IaaS_docs">
+<meta name="twitter:description" content="The query language: selectors, rate versus increase, counter resets, aggregation, joins, recording rules, and the traps that produce confidently wrong numbers.">
+<meta name="twitter:image" content="https://bthek1.github.io/IaaS_docs/Observability/Logo.svg">
+<meta name="twitter:card" content="summary_large_image">
+</head>
+
+<body class="nav-sidebar floating nav-fixed quarto-light"><script id="quarto-html-before-body" type="application/javascript">
+    const toggleBodyColorMode = (bsSheetEl) => {
+      const mode = bsSheetEl.getAttribute("data-mode");
+      const bodyEl = window.document.querySelector("body");
+      if (mode === "dark") {
+        bodyEl.classList.add("quarto-dark");
+        bodyEl.classList.remove("quarto-light");
+      } else {
+        bodyEl.classList.add("quarto-light");
+        bodyEl.classList.remove("quarto-dark");
+      }
+    }
+    const toggleBodyColorPrimary = () => {
+      const bsSheetEl = window.document.querySelector("link#quarto-bootstrap:not([rel=disabled-stylesheet])");
+      if (bsSheetEl) {
+        toggleBodyColorMode(bsSheetEl);
+      }
+    }
+    const setColorSchemeToggle = (alternate) => {
+      const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+      for (let i=0; i < toggles.length; i++) {
+        const toggle = toggles[i];
+        if (toggle) {
+          if (alternate) {
+            toggle.classList.add("alternate");
+          } else {
+            toggle.classList.remove("alternate");
+          }
+        }
+      }
+    };
+    const toggleColorMode = (alternate) => {
+      // Switch the stylesheets
+      const primaryStylesheets = window.document.querySelectorAll('link.quarto-color-scheme:not(.quarto-color-alternate)');
+      const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+      manageTransitions('#quarto-margin-sidebar .nav-link', false);
+      if (alternate) {
+        // note: dark is layered on light, we don't disable primary!
+        enableStylesheet(alternateStylesheets);
+        for (const sheetNode of alternateStylesheets) {
+          if (sheetNode.id === "quarto-bootstrap") {
+            toggleBodyColorMode(sheetNode);
+          }
+        }
+      } else {
+        disableStylesheet(alternateStylesheets);
+        enableStylesheet(primaryStylesheets)
+        toggleBodyColorPrimary();
+      }
+      manageTransitions('#quarto-margin-sidebar .nav-link', true);
+      // Switch the toggles
+      setColorSchemeToggle(alternate)
+      // Hack to workaround the fact that safari doesn't
+      // properly recolor the scrollbar when toggling (#1455)
+      if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+        manageTransitions("body", false);
+        window.scrollTo(0, 1);
+        setTimeout(() => {
+          window.scrollTo(0, 0);
+          manageTransitions("body", true);
+        }, 40);
+      }
+    }
+    const disableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        stylesheet.rel = 'disabled-stylesheet';
+      }
+    }
+    const enableStylesheet = (stylesheets) => {
+      for (let i=0; i < stylesheets.length; i++) {
+        const stylesheet = stylesheets[i];
+        if(stylesheet.rel !== 'stylesheet') { // for Chrome, which will still FOUC without this check
+          stylesheet.rel = 'stylesheet';
+        }
+      }
+    }
+    const manageTransitions = (selector, allowTransitions) => {
+      const els = window.document.querySelectorAll(selector);
+      for (let i=0; i < els.length; i++) {
+        const el = els[i];
+        if (allowTransitions) {
+          el.classList.remove('notransition');
+        } else {
+          el.classList.add('notransition');
+        }
+      }
+    }
+    const isFileUrl = () => {
+      return window.location.protocol === 'file:';
+    }
+    const hasAlternateSentinel = () => {
+      let styleSentinel = getColorSchemeSentinel();
+      if (styleSentinel !== null) {
+        return styleSentinel === "alternate";
+      } else {
+        return false;
+      }
+    }
+    const setStyleSentinel = (alternate) => {
+      const value = alternate ? "alternate" : "default";
+      if (!isFileUrl()) {
+        window.localStorage.setItem("quarto-color-scheme", value);
+      } else {
+        localAlternateSentinel = value;
+      }
+    }
+    const getColorSchemeSentinel = () => {
+      if (!isFileUrl()) {
+        const storageValue = window.localStorage.getItem("quarto-color-scheme");
+        return storageValue != null ? storageValue : localAlternateSentinel;
+      } else {
+        return localAlternateSentinel;
+      }
+    }
+    const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+      const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+      const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+      let newTheme = '';
+      if(authorPrefersDark) {
+        newTheme = isAlternate ? baseTheme : alternateTheme;
+      } else {
+        newTheme = isAlternate ? alternateTheme : baseTheme;
+      }
+      const changeGiscusTheme = () => {
+        // From: https://github.com/giscus/giscus/issues/336
+        const sendMessage = (message) => {
+          const iframe = document.querySelector('iframe.giscus-frame');
+          if (!iframe) return;
+          iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+        }
+        sendMessage({
+          setConfig: {
+            theme: newTheme
+          }
+        });
+      }
+      const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+      if (isGiscussLoaded) {
+        changeGiscusTheme();
+      }
+    };
+    const authorPrefersDark = false;
+    const darkModeDefault = authorPrefersDark;
+      document.querySelector('link#quarto-text-highlighting-styles.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+      document.querySelector('link#quarto-bootstrap.quarto-color-scheme-extra').rel = 'disabled-stylesheet';
+    let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+    // Dark / light mode switch
+    window.quartoToggleColorScheme = () => {
+      // Read the current dark / light value
+      let toAlternate = !hasAlternateSentinel();
+      toggleColorMode(toAlternate);
+      setStyleSentinel(toAlternate);
+      toggleGiscusIfUsed(toAlternate, darkModeDefault);
+      window.dispatchEvent(new Event('resize'));
+    };
+    // Switch to dark mode if need be
+    if (hasAlternateSentinel()) {
+      toggleColorMode(true);
+    } else {
+      toggleColorMode(false);
+    }
+  </script>
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a href="../index.html" class="navbar-brand navbar-brand-logo">
+    <img src="../Logo.svg" alt="Benedict Thekkel" class="navbar-logo light-content">
+    <img src="../Logo.svg" alt="Benedict Thekkel" class="navbar-logo dark-content">
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-deep-learning" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Deep Learning</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-deep-learning">    
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/FastAI_course/">
+ <span class="dropdown-text">Fast AI course</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/DL_methods/">
+ <span class="dropdown-text">DL Methods</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/DL_tasks/">
+ <span class="dropdown-text">DL Tasks</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-ml-techniques" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">ML Techniques</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-ml-techniques">    
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/ML_methods/">
+ <span class="dropdown-text">ML Methods</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/TimeSeriesML/">
+ <span class="dropdown-text">Time series</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-web" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Web</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-web">    
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/WEB_doc/">
+ <span class="dropdown-text">Web Development</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/Front_End/">
+ <span class="dropdown-text">Front End</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/Back_End/">
+ <span class="dropdown-text">Back End</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/IaaS_docs/">
+ <span class="dropdown-text">IaaS</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-tools" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Tools</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-tools">    
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/Software_Tools/">
+ <span class="dropdown-text">Software Tools</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/Hardware_Tools/">
+ <span class="dropdown-text">Hardware Tools</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/Python_Libs/">
+ <span class="dropdown-text">Python Libraries</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/nbdevAuto/">
+ <span class="dropdown-text">Nbdev Automation</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/ROS2_docs/">
+ <span class="dropdown-text">ROS 2</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-business" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Business</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-business">    
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/Business_doc/">
+ <span class="dropdown-text">Business Doc</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/Philosophy_doc/">
+ <span class="dropdown-text">Ideas Doc</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/Finances/">
+ <span class="dropdown-text">Finances</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://bthek1.github.io/Other/">
+ <span class="dropdown-text">Other</span></a>
+  </li>  
+    </ul>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" href="https://bthek1.github.io/bthek1_blog/"> 
+<span class="menu-text">Blog</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-help" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Help</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-help">    
+        <li>
+    <a class="dropdown-item" href="https://github.com/bthek1/bthek1_blog/issues"><i class="bi bi-bug" role="img">
+</i> 
+ <span class="dropdown-text">Report a Bug</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/bthek1/bthek1_blog/issues"><i class="bi bi-chat-right-text" role="img">
+</i> 
+ <span class="dropdown-text">Ask a Question</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="https://github.com/bthek1/bthek1_blog/issues"><i class="bi bi-question-circle" role="img">
+</i> 
+ <span class="dropdown-text">FAQ</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools tools-wide">
+    <a href="https://github.com/bthek1" title="" class="quarto-navigation-tool px-1" aria-label="Github"><i class="bi bi-github"></i></a>
+    <a href="https://www.linkedin.com/in/benedict-thekkel/" title="" class="quarto-navigation-tool px-1" aria-label="Linkedin"><i class="bi bi-linkedin"></i></a>
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+  <a href="" class="quarto-reader-toggle quarto-navigation-tool px-1" onclick="window.quartoToggleReader(); return false;" title="Toggle reader mode">
+  <div class="quarto-reader-toggle-btn">
+  <i class="bi"></i>
+  </div>
+</a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../Observability/observability_overview.html">Observability</a></li><li class="breadcrumb-item"><a href="../Observability/promql.html">PromQL</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation floating overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IaaS</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../terraform.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Terraform</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../ansible.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Ansible</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../pulumi.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Pulumi</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../k6.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">K6</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Docker</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Docker/docker_overview.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Docker Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Docker/install_docker.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Install Docker</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Docker/postgresql.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Docker Postgresql</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Docker/nginx.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Docker Nginx</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Docker/jupyterlabs.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Docker Jupyter Labs</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Docker/kali.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Docker Kali</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Docker/postgresql_docker.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Dockerzied PostgreSQL</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Docker/firefox.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Docker Firefox</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Docker/portainer.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Docker Portainer</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Docker/09_Influx_docker.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Influx Docker</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Docker/frigate.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Frigate</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Docker/lxc_&amp;_lxd.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LXC and LXD — Complete Guide</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Kubernetes</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Kubernetes/kubernetes_overview.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Kubernetes</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Observability</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/observability_overview.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Observability Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/prometheus.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Prometheus</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/exporters_and_instrumentation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Exporters and Instrumentation</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/promql.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">PromQL</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/alerting.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Alerting</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/loki.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Loki</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/logql.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LogQL</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/tempo.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Tempo</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/pyroscope.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Pyroscope</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/opentelemetry.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">OpenTelemetry</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/otel_collector.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">OpenTelemetry Collector</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/alloy.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Grafana Alloy</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/log_collectors.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Log Collectors: Fluent Bit and Vector</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/grafana.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Grafana</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/dashboards_as_code.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Dashboards as Code</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/long_term_storage.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Long-Term Storage</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/slos_and_alerting_practice.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SLOs and Alerting Practice</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/observability_landscape.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">The Observability Landscape</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../Observability/lgtm_stack.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">LGTM stack</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#the-four-expression-types" id="toc-the-four-expression-types" class="nav-link active" data-scroll-target="#the-four-expression-types">The Four Expression Types</a></li>
+  <li><a href="#selectors" id="toc-selectors" class="nav-link" data-scroll-target="#selectors">Selectors</a>
+  <ul class="collapse">
+  <li><a href="#offset-and" id="toc-offset-and" class="nav-link" data-scroll-target="#offset-and">Offset And @</a></li>
+  </ul></li>
+  <li><a href="#rate-irate-increase" id="toc-rate-irate-increase" class="nav-link" data-scroll-target="#rate-irate-increase">rate, irate, increase</a>
+  <ul class="collapse">
+  <li><a href="#all-three-handle-counter-resets" id="toc-all-three-handle-counter-resets" class="nav-link" data-scroll-target="#all-three-handle-counter-resets">All Three Handle Counter Resets</a></li>
+  <li><a href="#use-rate-not-irate" id="toc-use-rate-not-irate" class="nav-link" data-scroll-target="#use-rate-not-irate">Use rate, Not irate</a></li>
+  <li><a href="#the-window-must-cover-at-least-two-scrapes" id="toc-the-window-must-cover-at-least-two-scrapes" class="nav-link" data-scroll-target="#the-window-must-cover-at-least-two-scrapes">The Window Must Cover At Least Two Scrapes</a></li>
+  <li><a href="#increase-extrapolates-so-it-lies-about-integers" id="toc-increase-extrapolates-so-it-lies-about-integers" class="nav-link" data-scroll-target="#increase-extrapolates-so-it-lies-about-integers">increase Extrapolates, So It Lies About Integers</a></li>
+  </ul></li>
+  <li><a href="#aggregation" id="toc-aggregation" class="nav-link" data-scroll-target="#aggregation">Aggregation</a>
+  <ul class="collapse">
+  <li><a href="#aggregate-rate-do-not-rate-aggregate" id="toc-aggregate-rate-do-not-rate-aggregate" class="nav-link" data-scroll-target="#aggregate-rate-do-not-rate-aggregate">Aggregate Rate, Do Not Rate Aggregate</a></li>
+  <li><a href="#averaging-averages" id="toc-averaging-averages" class="nav-link" data-scroll-target="#averaging-averages">Averaging Averages</a></li>
+  </ul></li>
+  <li><a href="#histograms-and-quantiles" id="toc-histograms-and-quantiles" class="nav-link" data-scroll-target="#histograms-and-quantiles">Histograms And Quantiles</a></li>
+  <li><a href="#vector-matching-and-joins" id="toc-vector-matching-and-joins" class="nav-link" data-scroll-target="#vector-matching-and-joins">Vector Matching And Joins</a></li>
+  <li><a href="#absence-staleness-and-missing-data" id="toc-absence-staleness-and-missing-data" class="nav-link" data-scroll-target="#absence-staleness-and-missing-data">Absence, Staleness And Missing Data</a></li>
+  <li><a href="#subqueries" id="toc-subqueries" class="nav-link" data-scroll-target="#subqueries">Subqueries</a></li>
+  <li><a href="#recording-rules" id="toc-recording-rules" class="nav-link" data-scroll-target="#recording-rules">Recording Rules</a></li>
+  <li><a href="#reading-the-cost-of-a-query" id="toc-reading-the-cost-of-a-query" class="nav-link" data-scroll-target="#reading-the-cost-of-a-query">Reading The Cost Of A Query</a></li>
+  <li><a href="#quick-reference-the-traps" id="toc-quick-reference-the-traps" class="nav-link" data-scroll-target="#quick-reference-the-traps">Quick Reference: The Traps</a></li>
+  <li><a href="#where-next" id="toc-where-next" class="nav-link" data-scroll-target="#where-next">Where Next</a></li>
+  </ul>
+<div class="toc-actions"><ul><li><a href="https://github.dev/bthek1/IaaS_docs/blob/main/Observability/03_PromQL.ipynb" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/bthek1/IaaS_docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../Observability/observability_overview.html">Observability</a></li><li class="breadcrumb-item"><a href="../Observability/promql.html">PromQL</a></li></ol></nav>
+<div class="quarto-title">
+<h1 class="title">PromQL</h1>
+</div>
+
+<div>
+  <div class="description">
+    The query language: selectors, rate versus increase, counter resets, aggregation, joins, recording rules, and the traps that produce confidently wrong numbers.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Benedict Thekkel </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<!-- WARNING: THIS FILE WAS AUTOGENERATED! DO NOT EDIT! -->
+<section id="the-four-expression-types" class="level2">
+<h2 class="anchored" data-anchor-id="the-four-expression-types">The Four Expression Types</h2>
+<p>Every PromQL expression evaluates to one of four things, and most errors come from using one where another is required.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Type</th>
+<th>Looks like</th>
+<th>Is</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Instant vector</td>
+<td><code>node_cpu_seconds_total</code></td>
+<td>One sample per matching series, at the evaluation time</td>
+</tr>
+<tr class="even">
+<td>Range vector</td>
+<td><code>node_cpu_seconds_total[5m]</code></td>
+<td>A window of samples per series. Only useful as a function argument</td>
+</tr>
+<tr class="odd">
+<td>Scalar</td>
+<td><code>0.95</code>, <code>time()</code></td>
+<td>A single number</td>
+</tr>
+<tr class="even">
+<td>String</td>
+<td><code>"literal"</code></td>
+<td>Rarely used</td>
+</tr>
+</tbody>
+</table>
+<p>The rule that follows: <strong>a range vector cannot be graphed or compared</strong>. <code>node_cpu_seconds_total[5m] &gt; 0.5</code> is a parse error, and <code>rate(...)</code> exists precisely to collapse a range vector back into an instant vector. Any time PromQL complains about an unexpected type, the cause is almost always a range selector that never got wrapped in a function.</p>
+<hr>
+</section>
+<section id="selectors" class="level2">
+<h2 class="anchored" data-anchor-id="selectors">Selectors</h2>
+<pre class="promql"><code># Everything with this name
+http_requests_total
+
+# Exact label match
+http_requests_total{job="api", status="500"}
+
+# Regex match, anchored at both ends automatically
+http_requests_total{status=~"5.."}
+
+# Negation, and negative regex
+http_requests_total{status!="200"}
+http_requests_total{route!~"/health|/metrics"}
+
+# The name is a label too
+{__name__=~"node_cpu.*", mode="idle"}</code></pre>
+<p>Four operators: <code>=</code>, <code>!=</code>, <code>=~</code>, <code>!~</code>. Regexes are RE2 and are <strong>fully anchored</strong>, so <code>status=~"5"</code> matches only the literal string <code>5</code>, not <code>500</code>. Write <code>status=~"5.*"</code> or <code>status=~"5.."</code>.</p>
+<p><strong>A selector must match on something other than an empty string.</strong> <code>{job=~".*"}</code> is rejected because it would match every series in the database. <code>{__name__=~".+"}</code> works and is the usual way to ask a cardinality question deliberately.</p>
+<section id="offset-and" class="level3">
+<h3 class="anchored" data-anchor-id="offset-and">Offset And @</h3>
+<pre class="promql"><code># The same query as it stood a week ago
+sum(rate(http_requests_total[5m] offset 7d))
+
+# Pinned to an absolute timestamp, regardless of the graph range
+sum(rate(http_requests_total[5m] @ 1758585600))
+
+# Week-over-week ratio
+sum(rate(http_requests_total[5m])) / sum(rate(http_requests_total[5m] offset 7d))</code></pre>
+<p><code>offset</code> shifts the lookback. <code>@</code> pins to an absolute time, which is what makes it possible to compare a moving window against a fixed reference point inside one expression.</p>
+<hr>
+</section>
+</section>
+<section id="rate-irate-increase" class="level2">
+<h2 class="anchored" data-anchor-id="rate-irate-increase">rate, irate, increase</h2>
+<p>This is the centre of the language and the source of most wrong answers.</p>
+<p>A counter only goes up, so its raw value is uninteresting. All three of these functions answer “how fast is it going up”, differently.</p>
+<pre class="promql"><code># Per-second average over the window. The default choice, always.
+rate(http_requests_total[5m])
+
+# Total over the window, extrapolated. rate() * window, roughly.
+increase(http_requests_total[5m])
+
+# Per-second, computed from only the LAST TWO samples in the window.
+irate(http_requests_total[5m])</code></pre>
+<section id="all-three-handle-counter-resets" class="level3">
+<h3 class="anchored" data-anchor-id="all-three-handle-counter-resets">All Three Handle Counter Resets</h3>
+<p>When a process restarts, its counters go back to zero. A naive derivative would produce a large negative spike. <code>rate</code>, <code>irate</code>, <code>increase</code> and <code>resets</code> all detect a decrease between consecutive samples, treat it as a reset, and add the pre-reset value back in.</p>
+<p>This is why <strong>you must never compute a rate by hand</strong>. <code>(x - x offset 5m) / 300</code> looks equivalent and is wrong on every restart, and restarts are exactly when you are looking at the graph.</p>
+</section>
+<section id="use-rate-not-irate" class="level3">
+<h3 class="anchored" data-anchor-id="use-rate-not-irate">Use rate, Not irate</h3>
+<p><code>irate</code> uses only the last two samples in the range, so it reacts instantly and is extremely spiky. It is for zooming into a short incident, never for alerting or for a dashboard covering hours, where it will alias badly: with a 15 s scrape and a 1 h graph the renderer picks one pair of samples per pixel and throws away everything between them, so brief spikes appear or vanish depending on the window width.</p>
+<p><code>rate</code> fits a line across the whole window and is the right default in essentially every case.</p>
+</section>
+<section id="the-window-must-cover-at-least-two-scrapes" class="level3">
+<h3 class="anchored" data-anchor-id="the-window-must-cover-at-least-two-scrapes">The Window Must Cover At Least Two Scrapes</h3>
+<p><code>rate()</code> needs two samples to compute anything, so the range has to span at least two scrape intervals. Prometheus 3 additionally requires a bit of margin.</p>
+<p><strong>The practical rule is a window of at least 4x the scrape interval.</strong> At 15 s scrapes, <code>[1m]</code> is the minimum and <code>[5m]</code> is the comfortable default. <code>rate(x[30s])</code> on a 15 s scrape returns empty whenever a single scrape is late, which makes an alert that silently stops evaluating: no data, no firing, no error.</p>
+</section>
+<section id="increase-extrapolates-so-it-lies-about-integers" class="level3">
+<h3 class="anchored" data-anchor-id="increase-extrapolates-so-it-lies-about-integers">increase Extrapolates, So It Lies About Integers</h3>
+<p><code>increase()</code> is defined as the rate over the window multiplied by the window length, with extrapolation to the range boundaries. The result is a float, and it is frequently not the integer you expect.</p>
+<pre class="promql"><code>increase(http_requests_total[1h])   # can return 5.999999 or 6.0000001 for 6 events</code></pre>
+<p>For a low-frequency counter this is visibly wrong, and <code>increase(errors_total[1h]) &gt; 5</code> can fire on five actual errors. Where the exact count matters, alert on <code>rate</code> over a longer window instead, or accept the approximation knowingly. This is a documented consequence of the extrapolation, not a bug.</p>
+<hr>
+</section>
+</section>
+<section id="aggregation" class="level2">
+<h2 class="anchored" data-anchor-id="aggregation">Aggregation</h2>
+<pre class="promql"><code># Collapse everything to one number
+sum(rate(http_requests_total[5m]))
+
+# Keep a dimension: one result per job
+sum by (job) (rate(http_requests_total[5m]))
+
+# Collapse only one dimension, keep the rest
+sum without (instance) (rate(http_requests_total[5m]))</code></pre>
+<p>Operators: <code>sum</code>, <code>min</code>, <code>max</code>, <code>avg</code>, <code>count</code>, <code>stddev</code>, <code>stdvar</code>, <code>topk</code>, <code>bottomk</code>, <code>quantile</code>, <code>group</code>, <code>count_values</code>.</p>
+<p><strong><code>by</code> keeps only the listed labels. <code>without</code> drops only the listed ones.</strong> Prefer <code>without</code> when adding a new label to instrumentation should not silently change the query, and <code>by</code> when the intended grouping is fixed. A dashboard built with <code>by (job)</code> keeps working when someone adds a <code>version</code> label; one built with <code>without (instance)</code> starts splitting every line in two.</p>
+<section id="aggregate-rate-do-not-rate-aggregate" class="level3">
+<h3 class="anchored" data-anchor-id="aggregate-rate-do-not-rate-aggregate">Aggregate Rate, Do Not Rate Aggregate</h3>
+<pre class="promql"><code>sum(rate(http_requests_total[5m]))      # correct
+rate(sum(http_requests_total)[5m:])     # wrong</code></pre>
+<p>The second form sums the counters first. When one instance restarts, the sum drops, and the reset detection cannot tell that drop apart from a genuine decrease because it is now looking at an aggregate of many counters rather than one counter. The rule: <strong><code>rate()</code> goes on the innermost expression, directly around the counter selector</strong>, and aggregation wraps it.</p>
+</section>
+<section id="averaging-averages" class="level3">
+<h3 class="anchored" data-anchor-id="averaging-averages">Averaging Averages</h3>
+<pre class="promql"><code>avg(rate(http_request_duration_seconds_sum[5m]) / rate(http_request_duration_seconds_count[5m]))   # wrong
+sum(rate(http_request_duration_seconds_sum[5m])) / sum(rate(http_request_duration_seconds_count[5m]))   # right</code></pre>
+<p>The first takes the mean of per-instance means, which weights a barely-used instance equally with a busy one. The second is the true fleet-wide mean because it divides total time by total count. The same reasoning applies to any ratio: <strong>sum the numerators and sum the denominators, then divide</strong>.</p>
+<hr>
+</section>
+</section>
+<section id="histograms-and-quantiles" class="level2">
+<h2 class="anchored" data-anchor-id="histograms-and-quantiles">Histograms And Quantiles</h2>
+<pre class="promql"><code># p99 latency across the fleet
+histogram_quantile(
+  0.99,
+  sum by (le) (rate(http_request_duration_seconds_bucket[5m]))
+)
+
+# p99 per route
+histogram_quantile(
+  0.99,
+  sum by (le, route) (rate(http_request_duration_seconds_bucket[5m]))
+)</code></pre>
+<p>Three things must be true or the answer is garbage.</p>
+<ol type="1">
+<li><strong><code>rate()</code> around the bucket counter</strong>, because buckets are counters.</li>
+<li><strong><code>le</code> must survive the aggregation.</strong> <code>sum by (le)</code> or <code>sum without (instance)</code>. Dropping <code>le</code> leaves nothing to interpolate over and returns <code>NaN</code>.</li>
+<li><strong>Aggregate before <code>histogram_quantile</code>, never after.</strong> Taking the average of per-instance p99s is meaningless; quantiles do not average.</li>
+</ol>
+<p><strong>The result is only as good as the bucket boundaries.</strong> <code>histogram_quantile</code> interpolates linearly inside the bucket the quantile falls into. If the buckets jump from 1 s to 10 s and the true p99 is 2 s, the answer will be somewhere near 1.9 s by pure luck of the interpolation. When a quantile sits inside the last finite bucket it is at least bounded; when it falls into <code>+Inf</code> the function returns the lower bound of that bucket and the true value is unknowable.</p>
+<p>Sanity check a suspicious quantile against <code>_sum / _count</code>. If the mean is 400 ms and the reported p99 is 410 ms, the buckets are too coarse to resolve the tail.</p>
+<hr>
+</section>
+<section id="vector-matching-and-joins" class="level2">
+<h2 class="anchored" data-anchor-id="vector-matching-and-joins">Vector Matching And Joins</h2>
+<p>Binary operations match series on their full label sets. Identical labels on both sides just work.</p>
+<pre class="promql"><code># Both sides have the same labels: element-wise division
+node_filesystem_avail_bytes / node_filesystem_size_bytes</code></pre>
+<p>When the label sets differ, the match must be specified.</p>
+<pre class="promql"><code># Many-to-one: many pod series, one info series per pod
+sum by (pod) (rate(container_cpu_usage_seconds_total[5m]))
+  * on (pod) group_left (owner_name)
+  kube_pod_owner</code></pre>
+<p><code>on (labels)</code> restricts matching to the listed labels. <code>ignoring (labels)</code> matches on everything except those. <code>group_left</code> means the left side has the many and pulls extra labels from the right; <code>group_right</code> is the mirror image.</p>
+<p><strong>The info-metric join is the pattern worth memorising.</strong> Exporters commonly emit a <code>*_info</code> metric with value 1 whose only job is to carry metadata labels, and this is how that metadata gets attached to a real measurement.</p>
+<pre class="promql"><code># Attach the version label from an info metric onto a rate
+sum by (instance) (rate(app_requests_total[5m]))
+  * on (instance) group_left (version)
+  app_build_info</code></pre>
+<p>Multiplying by a metric whose value is always 1 leaves the numbers unchanged and copies the labels across. That is the whole trick.</p>
+<p><strong><code>many-to-many matching not allowed</code> means a <code>group_left</code> is missing</strong> or the <code>on</code> clause is not specific enough to make one side unique. The fix is almost never to add more labels to <code>on</code>; it is to work out which side is the “one”.</p>
+<hr>
+</section>
+<section id="absence-staleness-and-missing-data" class="level2">
+<h2 class="anchored" data-anchor-id="absence-staleness-and-missing-data">Absence, Staleness And Missing Data</h2>
+<p>The hardest class of alert is on something that stopped happening, because a series that does not exist cannot be compared to a threshold.</p>
+<pre class="promql"><code># Fires when the series is entirely absent
+absent(up{job="api"})
+
+# Absent, per label combination, from a range
+absent_over_time(up{job="api"}[10m])
+
+# Has the counter moved at all in an hour
+increase(backup_success_total[24h]) == 0
+
+# Time since the last successful run
+time() - backup_last_success_timestamp_seconds &gt; 86400</code></pre>
+<p><strong><code>absent()</code> only fires when the selector matches nothing at all.</strong> It cannot tell you that one of twenty instances vanished, because the other nineteen still match. For per-instance disappearance the usual pattern is a comparison against what should exist, via <code>kube_*</code> object metrics or a static list.</p>
+<p><strong>The staleness window is five minutes.</strong> A series whose target disappears keeps being returned by instant queries for up to five minutes, then stops. An alert with <code>for: 2m</code> on an absence condition may therefore not fire until well after the fact. Prometheus writes explicit stale markers when it knows a target went away, which shortens this, but not for every disappearance path.</p>
+<p><strong>A timestamp gauge is the most reliable staleness signal.</strong> <code>time() - last_success_timestamp_seconds</code> always has a value as long as the exporter is up, degrades gracefully, and says exactly how late the thing is.</p>
+<hr>
+</section>
+<section id="subqueries" class="level2">
+<h2 class="anchored" data-anchor-id="subqueries">Subqueries</h2>
+<p>A subquery evaluates an instant-vector expression over a range, producing a range vector. The syntax is <code>[range:resolution]</code>.</p>
+<pre class="promql"><code># The maximum 5m request rate seen in the last hour
+max_over_time(rate(http_requests_total[5m])[1h:1m])
+
+# Was the error ratio ever above 5 percent today
+max_over_time(
+  (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])))[24h:5m]
+) &gt; 0.05</code></pre>
+<p>They are expensive: a <code>[24h:5m]</code> subquery evaluates the inner expression 288 times per outer evaluation. Useful for exploration, and a strong signal that a recording rule should exist. Never put one in an alerting rule that evaluates every 15 seconds.</p>
+<hr>
+</section>
+<section id="recording-rules" class="level2">
+<h2 class="anchored" data-anchor-id="recording-rules">Recording Rules</h2>
+<p>A recording rule evaluates an expression on a schedule and stores the result as a new series. It exists for two reasons: to make a dashboard fast, and to make an expensive expression cheap enough to alert on.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode yaml code-with-copy"><code class="sourceCode yaml"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="fu">groups</span><span class="kw">:</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> api-slo</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">interval</span><span class="kw">:</span><span class="at"> 30s</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">rules</span><span class="kw">:</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">record</span><span class="kw">:</span><span class="at"> job:http_requests:rate5m</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">expr</span><span class="kw">:</span><span class="at"> sum by (job) (rate(http_requests_total[5m]))</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">record</span><span class="kw">:</span><span class="at"> job:http_errors:rate5m</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">expr</span><span class="kw">:</span><span class="at"> sum by (job) (rate(http_requests_total{status=~"5.."}[5m]))</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="kw">-</span><span class="at"> </span><span class="fu">record</span><span class="kw">:</span><span class="at"> job:http_error_ratio:rate5m</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="fu">expr</span><span class="kw">:</span><span class="at"> job:http_errors:rate5m / job:http_requests:rate5m</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p><strong>The naming convention is <code>level:metric:operations</code>.</strong> The prefix is the aggregation level (the labels that survive), the middle is the metric, the suffix describes what was done. <code>job:http_requests:rate5m</code> reads as “summed to job level, of http_requests, as a 5-minute rate”. It is a convention rather than a rule, and it is worth following because it makes the aggregation level obvious at a glance in a dashboard nobody has opened for a year.</p>
+<p><strong>Rules within a group evaluate sequentially</strong>, so a rule can depend on one defined above it in the same group, as the third rule above does. Rules in different groups evaluate concurrently and must not depend on each other.</p>
+<p><strong>Do not record a rule whose expression is cheap.</strong> Every recording rule is a new series written forever. The point is to precompute the expensive aggregation once instead of on every dashboard refresh, not to alias every query.</p>
+<hr>
+</section>
+<section id="reading-the-cost-of-a-query" class="level2">
+<h2 class="anchored" data-anchor-id="reading-the-cost-of-a-query">Reading The Cost Of A Query</h2>
+<pre class="promql"><code># The 10 metric names with the most series
+topk(10, count by (__name__) ({__name__=~".+"}))
+
+# Series per job
+sort_desc(count by (job) ({__name__=~".+"}))
+
+# Which label is exploding, for one metric
+count(count by (pod) (container_cpu_usage_seconds_total))
+
+# Scrape health across the fleet
+sum by (job) (up) / count by (job) (up)
+
+# Samples ingested per second, the ingestion budget
+rate(prometheus_tsdb_head_samples_appended_total[5m])</code></pre>
+<p><code>/tsdb-status</code> in the web UI gives the same top-cardinality view without writing a query, and Prometheus logs a slow-query warning for anything above <code>--query.timeout</code>. A query touching more than a few million samples will be slow no matter how it is written; the answer is a recording rule or fewer series, not a cleverer expression.</p>
+<hr>
+</section>
+<section id="quick-reference-the-traps" class="level2">
+<h2 class="anchored" data-anchor-id="quick-reference-the-traps">Quick Reference: The Traps</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 50%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Symptom</th>
+<th>Cause</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Empty result from <code>rate()</code></td>
+<td>Range narrower than 2 scrape intervals. Use at least 4x</td>
+</tr>
+<tr class="even">
+<td>Negative spike on a graph</td>
+<td>A hand-rolled derivative instead of <code>rate()</code>. Counter reset</td>
+</tr>
+<tr class="odd">
+<td><code>histogram_quantile</code> returns <code>NaN</code></td>
+<td><code>le</code> was dropped by the aggregation</td>
+</tr>
+<tr class="even">
+<td>p99 equals the top bucket bound</td>
+<td>The tail is past the last finite bucket, value unknowable</td>
+</tr>
+<tr class="odd">
+<td>Latency graph looks too good</td>
+<td>Averaged per-instance quantiles, or averaged averages</td>
+</tr>
+<tr class="even">
+<td><code>many-to-many matching not allowed</code></td>
+<td>Missing <code>group_left</code> or <code>group_right</code></td>
+</tr>
+<tr class="odd">
+<td>Alert never fires on an outage</td>
+<td>Condition needs a series that disappears with the target. Use <code>absent()</code> or a timestamp gauge</td>
+</tr>
+<tr class="even">
+<td><code>increase()</code> returns 5.9999</td>
+<td>Extrapolation. Expected behaviour, not a bug</td>
+</tr>
+<tr class="odd">
+<td>Regex matches nothing</td>
+<td>Regexes are fully anchored. <code>5</code> is not <code>5..</code></td>
+</tr>
+<tr class="even">
+<td>Dashboard slow after adding a label</td>
+<td>Cardinality. Check <code>/tsdb-status</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="where-next" class="level2">
+<h2 class="anchored" data-anchor-id="where-next">Where Next</h2>
+<ul>
+<li><a href="../Observability/alerting.html">Alerting</a> turns these expressions into rules and routes what they produce.</li>
+<li><a href="../Observability/logql.html">LogQL</a> is the deliberately similar language for logs.</li>
+<li><a href="../Observability/slos_and_alerting_practice.html">SLOs and alerting practice</a> covers burn rate queries, which are the most demanding PromQL most people write.</li>
+</ul>
+<hr>
+
+
+</section>
+
+<a onclick="window.scrollTo(0, 0); return false;" role="button" id="quarto-back-to-top"><i class="bi bi-arrow-up"></i> Back to top</a></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    // Ensure there is a toggle, if there isn't float one in the top right
+    if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+      const a = window.document.createElement('a');
+      a.classList.add('top-right');
+      a.classList.add('quarto-color-scheme-toggle');
+      a.href = "";
+      a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+      const i = window.document.createElement("i");
+      i.classList.add('bi');
+      a.appendChild(i);
+      window.document.body.appendChild(a);
+    }
+    setColorSchemeToggle(hasAlternateSentinel())
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp("https:\/\/bthek1\.github\.io\/IaaS_docs");
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+<script src="https://utteranc.es/client.js" repo="quarto-dev/quarto-web" issue-term="pathname" theme="github-light" crossorigin="anonymous" async="">
+</script>
+<nav class="page-navigation">
+  <div class="nav-page nav-page-previous">
+      <a href="../Observability/exporters_and_instrumentation.html" class="pagination-link" aria-label="Exporters and Instrumentation">
+        <i class="bi bi-arrow-left-short"></i> <span class="nav-page-text">Exporters and Instrumentation</span>
+      </a>          
+  </div>
+  <div class="nav-page nav-page-next">
+      <a href="../Observability/alerting.html" class="pagination-link" aria-label="Alerting">
+        <span class="nav-page-text">Alerting</span> <i class="bi bi-arrow-right-short"></i>
+      </a>
+  </div>
+</nav>
+</div> <!-- /content -->
+<footer class="footer">
+  <div class="nav-footer">
+    <div class="nav-footer-left">
+      &nbsp;
+    </div>   
+    <div class="nav-footer-center">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item">
+    <a class="nav-link active" href="../index.html" aria-current="page">
+<p>Trademark</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://github.com/bthek1/bthek1_blog/issues">
+<p>FAQ</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="https://bthek1.github.io/bthek1_blog/index.html">
+<p>License</p>
+</a>
+  </li>  
+    <li class="nav-item">
+    <a class="nav-link" href="../index.html">
+<p>Trademark</p>
+</a>
+  </li>  
+</ul>
+    <div class="toc-actions d-sm-block d-md-none"><ul><li><a href="https://github.dev/bthek1/IaaS_docs/blob/main/Observability/03_PromQL.ipynb" class="toc-action"><i class="bi bi-github"></i>Edit this page</a></li><li><a href="https://github.com/bthek1/IaaS_docs/issues/new" class="toc-action"><i class="bi empty"></i>Report an issue</a></li></ul></div></div>
+    <div class="nav-footer-right">
+      <ul class="footer-items list-unstyled">
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/bthek1">
+      <i class="bi bi-github" role="img" aria-label="Github">
+</i> 
+    </a>
+  </li>  
+    <li class="nav-item compact">
+    <a class="nav-link" href="https://www.linkedin.com/in/benedict-thekkel/">
+      <i class="bi bi-linkedin" role="img" aria-label="Linkedin">
+</i> 
+    </a>
+  </li>  
+</ul>
+    </div>
+  </div>
+</footer>
+
+
+
+
+</body></html>
