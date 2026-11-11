@@ -37,7 +37,7 @@ Containers are what you run on the IaaS layer, and the single word covers two qu
 | Treat it as | A machine | A machine | A process |
 | Reach for it when | You need a different OS or a hard isolation boundary | You want a long-lived host to SSH into and configure | You are packaging and shipping a single service |
 
-[LXC and LXD](Docker/11_LXC_&_LXD.ipynb) covers the system container side. Everything else here is Docker.
+[LXC and LXD](Docker/11_LXC_and_LXD.ipynb) covers the system container side. Everything else here is Docker.
 
 ------------------------------------------------------------------------
 
@@ -58,7 +58,7 @@ Containers are what you run on the IaaS layer, and the single word covers two qu
 |----|----|
 | [Docker Overview](Docker/00_Docker_Overview.ipynb) | Images, containers, and volumes, plus how a Dockerfile is layered instruction by instruction, with a CUDA PyTorch image as the worked example |
 | [Install Docker](Docker/01_Install_Docker.ipynb) | Adding Docker’s apt repository on Linux, installing the engine, verifying it, and running it as a non-root user |
-| [LXC and LXD](Docker/11_LXC_&_LXD.ipynb) | System containers: how they differ from Docker, `lxd init` explained option by option, then profiles, storage pools, networks, and the lifecycle commands |
+| [LXC and LXD](Docker/11_LXC_and_LXD.ipynb) | System containers: how they differ from Docker, `lxd init` explained option by option, then profiles, storage pools, networks, and the lifecycle commands |
 
 **Orchestration**
 
