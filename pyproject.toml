@@ -28,3 +28,4 @@ version = {attr = "IaaS_docs.__version__"}
 include = ["IaaS_docs"]
 
 [tool.nbdev]
+custom_sidebar = true
